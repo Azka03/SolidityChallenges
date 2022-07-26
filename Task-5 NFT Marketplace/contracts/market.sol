@@ -17,27 +17,22 @@ contract Market {
         address seller;
         address token;
         uint tokenId;
-        // TokenStatus status;
     }
 
     //List of owners of the NFTs which are on sale (Includes auction params as well)
     struct SaleNFTs {
-        address seller;
+        address seller; 
         address token;
         uint tokenId;
-        address payableToken; //konse token mein payment ho 
-        // uint price; because of auction, price buyer btaye ga 
+        address payableToken; //Payment to be done in which token
         bool sold;
-        // uint initialPrice; ask if there is any initial price?
-        // uint minBid;
         address lastBidder;
         uint heighestBid;
-        // address buyer; //added for update func
         address winner;
-        address royalityReceiver;
+        address royalityReceiver; //Creator of the NFT
         uint royalityFee;
         
-        // uint startTime; //DFERC721Contracto it later
+        // uint startTime; //Do it later
         // uint endTime;
     }
 
@@ -82,14 +77,12 @@ contract Market {
         // console.log("Owner of token: ", nft.ownerOf(_nftTokenId));
 
         NFTList memory listedNFT = _NftsList[_nftToken][_nftTokenId];
-        require(!listedNFT.onSale, "Already on sale");
 
+        require(!listedNFT.onSale, "Already on sale");
         require(_seller == nft.ownerOf(_nftTokenId), "Only Owner can forward the request to put NFT on sale");
-        
 
         _onSaleNfts[_nftToken][_nftTokenId] = SaleNFTs({
-            // creator: _royaltyReciever,
-            seller: _seller, //address seller
+            seller: _seller, 
             token: _nftToken,
             tokenId: _nftTokenId,
             payableToken: _payableToken,
@@ -123,15 +116,15 @@ contract Market {
         //Checks:
         // -Seller cannot be buyer
         // -Token is on sale
-        // -If current bid is higher than previous, replace the bid  (DONE)
+        // -If current bid is higher than previous, replace the bid 
         // -Time, Start time of auction should be less than current time (Auction Started or not)
         // -Time, End time of auction should be greater than current time (Auction Ended or not) 
         // -Bidder has the amount to transfer or not? 
 
         Token nft = Token(_nftToken);
-        require(nft.ownerOf(_nftTokenId)!=_buyer, "Seller cannot be buyer");
 
-        require(_price >=_onSaleNfts[_nftToken][_nftTokenId].heighestBid, "less than highest bid price");
+        require(nft.ownerOf(_nftTokenId)!=_buyer, "Seller cannot be buyer");
+        require(_price >=_onSaleNfts[_nftToken][_nftTokenId].heighestBid, "Bid less than highest bid price");
         
          _bidders[_nftToken][_nftTokenId] = Bidder({
             buyer: _buyer,
@@ -142,17 +135,14 @@ contract Market {
         });
 
         SaleNFTs storage saleNFT = _onSaleNfts[_nftToken][_nftTokenId];
-
         Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
+
         ZemToken payToken = ZemToken(biddersNFT.paidToken);
-        // console.log(biddersNFT.paidToken, "TOKEN PAYABLE");
-        console.log("BUYER Contract: ", _buyer, "Balance: ", payToken.balanceOf(biddersNFT.buyer));
+        // console.log("Bidder Address: ", _buyer, "Balance of bidder: ", payToken.balanceOf(biddersNFT.buyer));
         
         payToken.approve(biddersNFT.buyer, payToken.balanceOf(biddersNFT.buyer));
 
         payToken.transferFrom(biddersNFT.buyer, address(this), _price);
-        // console.log("buyer: ", _buyer);
-        // console.log("address: ", address(this));
         // console.log(payToken.balanceOf(_buyer));
 
         if (saleNFT.lastBidder != address(0)) {
@@ -163,21 +153,21 @@ contract Market {
             payToken.approve(address(this), lastBidPrice);
 
             payToken.transferFrom(address(this), lastBidder, lastBidPrice);
-            console.log(payToken.balanceOf(address(this)));
+            // console.log(payToken.balanceOf(address(this)));
         }
-
-        // nft.transferFrom(address(this), saleNFT.lastBidder, saleNFT.tokenId);
-
 
         // Set new heighest bid price
         saleNFT.lastBidder = _buyer; //address buyer
         saleNFT.heighestBid = _price;
 
-        // _bidPrices[_nftToken][_buyer]=_price;
         _buyersList[_nftToken][_buyer]=true;
     }
 
-    function updateBid(address _nftToken, address _buyer, uint _price, uint _nftTokenId) external returns (uint){
+    function getBidder(address _nftToken, uint256 _nftTokenId) public view returns (Bidder memory) {
+        return _bidders[_nftToken][_nftTokenId];
+    }
+
+    function updateBid(address _nftToken, address _buyer, uint _price, uint _nftTokenId) external {
         //Checks:
         // -If buyer has already placed a bid?
         // -If update is not equal to the previous bid
@@ -185,19 +175,18 @@ contract Market {
         require (_buyersList[_nftToken][_buyer], "Bid not placed by specified buyer");
 
         Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
+
+        require (biddersNFT.price!=_price, "Updating Bid with same price is not allowed");
+
         ZemToken payToken = ZemToken(biddersNFT.paidToken);
-
-        // Token nft = Token(_nftToken);
-        console.log(payToken.balanceOf(address(this)));
-
         SaleNFTs storage nftonSale = _onSaleNfts[_nftToken][_nftTokenId];
 
         payToken.approve(address(this), nftonSale.heighestBid);
-
         payToken.transferFrom(address(this), _buyer, nftonSale.heighestBid);
 
+        biddersNFT.price=_price;
         nftonSale.heighestBid = _price;
-        console.log(nftonSale.heighestBid);
+        // console.log(nftonSale.heighestBid);
 
         payToken.transferFrom(_buyer, address(this), nftonSale.heighestBid);
     }
@@ -210,27 +199,27 @@ contract Market {
 
         SaleNFTs storage nftonSale = _onSaleNfts[_nftToken][_nftTokenId];
 
-        console.log(payToken.balanceOf(_buyer));
-        console.log(nftonSale.heighestBid);
+        // console.log(payToken.balanceOf(_buyer));
+        // console.log(nftonSale.heighestBid);
 
 
         payToken.approve(address(this), nftonSale.heighestBid);
-
         payToken.transferFrom(address(this), _buyer, nftonSale.heighestBid);
 
-
-        console.log(payToken.balanceOf(_buyer));
-
+        // console.log(payToken.balanceOf(_buyer));
 
         delete _buyersList[_nftToken][_buyer];
         delete _bidders[_nftToken][_nftTokenId];
         delete _NftsList[_nftToken][_nftTokenId];
         delete _bidders[_nftToken][_nftTokenId];
+
+        nftonSale.heighestBid = 0;
+        nftonSale.lastBidder = address(0); 
     }
 
     function ConcludeAuction(address _nftToken, uint _nftTokenId) external {
         SaleNFTs storage auction = _onSaleNfts[_nftToken][_nftTokenId];
-         Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
+        Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
 
         _NftsList[_nftToken][_nftTokenId] = NFTList({
                 onSale: false,
@@ -246,9 +235,9 @@ contract Market {
         auction.winner= auction.lastBidder;
         uint totalPrice = auction.heighestBid;
 
-        console.log("Total Sale Price", totalPrice);
+        // console.log("Total Sale Price", totalPrice);
 
-        console.log("Balance before concluding: ", payToken.balanceOf(address(this)));
+        // console.log("Balance before concluding: ", payToken.balanceOf(address(this)));
         console.log("Creator: ", auction.royalityReceiver);
         console.log("Seller: ", auction.seller);
 
@@ -258,11 +247,11 @@ contract Market {
             console.log("Secondary Sale");
             uint creatorRoyalty = (totalPrice)/auction.royalityFee;
             console.log("Creator's Balance before: ", payToken.balanceOf(auction.royalityReceiver));
-            console.log("Seller's before concluding: ", payToken.balanceOf(auction.seller));
+            console.log("Seller's  Balance before: ", payToken.balanceOf(auction.seller));
             console.log("Creator Royality Fee", creatorRoyalty);
             payToken.transferFrom(address(this), auction.royalityReceiver, creatorRoyalty);
-            console.log("Creator's after concluding: ", payToken.balanceOf(auction.royalityReceiver));
-            console.log("Seller ka hissa", totalPrice-creatorRoyalty);
+            console.log("Creator's Balance after concluding: ", payToken.balanceOf(auction.royalityReceiver));
+            console.log("Seller's profit: ", totalPrice-creatorRoyalty);
 
             payToken.transferFrom(address(this), auction.seller, totalPrice-creatorRoyalty);
             console.log("Seller's after concluding: ", payToken.balanceOf(auction.seller));
@@ -273,7 +262,7 @@ contract Market {
             payToken.transferFrom(address(this), auction.seller, totalPrice);
         }
         // Transfer to auction creator
-        console.log("Balance after concluding: ", payToken.balanceOf(address(this)));
+        // console.log("Balance after concluding: ", payToken.balanceOf(address(this)));
 
         // Transfer NFT to the winner
         nft.transferFrom(address(this), auction.lastBidder, auction.tokenId);

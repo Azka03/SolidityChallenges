@@ -29,7 +29,7 @@ contract ERC721Factory{
 
         //Calling mint function through our instance and minting the total supply
         nftToken.mint(msg.sender, _tokenId);
-        console.log("Owner from Factory: ", nftToken.ownerOf(_tokenId));
+        // console.log("Owner from Factory: ", nftToken.ownerOf(_tokenId));
         // console.log("Bal after minting ", nftToken.balanceOf(msg.sender));
     }
 
