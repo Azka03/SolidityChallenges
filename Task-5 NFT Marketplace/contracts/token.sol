@@ -15,7 +15,7 @@ contract Token is IERC721 {
     // nested mapping, is address approved to use NFTs, (owner to operator approvals)
     mapping (address => mapping (address => bool)) private _allowance;
 
-    //NFTs mapped to owner addresses, tokenID will tell the user
+    //NFTs mapped to owner addresses, tokenID will tell the owner
     mapping (uint => address) private _owners;
 
     //Map token ID to approved address, tokenID will tell approved address (address which can use the NFT)
@@ -23,10 +23,12 @@ contract Token is IERC721 {
 
     string public symbol = "Z"; //symbol of our NFT 
     string public name = "Zem"; //name of our NFT
+    uint public tokenId = 0;
 
-    constructor(string memory _symbol,string memory _name) public {
+    constructor(string memory _symbol,string memory _name, uint _tokenId) public {
         symbol  = _symbol; //symbol of our token //symbol of our token
         name = _name; //name of our token
+        tokenId = _tokenId; //Id of our token
     }
 
     //Returns balance of a given address (balance / no of NFTs in specified address)
@@ -50,7 +52,7 @@ contract Token is IERC721 {
     //Transfers ownership of the specified token ID
     function transferFrom(address _from, address _to, uint256 _tokenId) public {
         //check if correct owner is trying to transfer
-        require(ownerOf(_tokenId) == _from, "Transfer is not possible from incorrect owner.");
+        require(ownerOf(_tokenId) == _from, "Transfer is only possible through owner.");
 
         //delete from mapping, tokenID no longer belongs to the previous address
         delete _approvedAddr[_tokenId];
@@ -94,7 +96,8 @@ contract Token is IERC721 {
         _balanceOf[_to] += 1;
         _owners[_tokenId] = _to;
 
-        console.log("TOKEN ID: ", _tokenId);
+        //_tokenId++
+        // console.log("TOKEN ID: ", _tokenId);
         emit Transfer(address(0), _to, _tokenId);
     }
 }

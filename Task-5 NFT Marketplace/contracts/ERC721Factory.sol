@@ -10,7 +10,7 @@ import "hardhat/console.sol"; //console for debugging
 
 contract ERC721Factory{
 
-    //Stores address of tokens been deployed - contract type is taken because when we deploy, we are creating object of ZemToken contract 
+    //Stores address of tokens been deployed - contract type is taken because when we deploy, we are creating object of nftToken contract 
     Token[] public _Tokens;
 
     //Addresses refer whether it is whitelisted or not by owner -> msg.sender
@@ -20,17 +20,17 @@ contract ERC721Factory{
     function deployToken(string memory _symbol, string memory _name, uint _tokenId) public {
 
         //Creates instance of our contract and send symbol, name and decimals as parameters
-        Token zemtoken = new Token( _symbol, _name);
+        Token nftToken = new Token( _symbol, _name, _tokenId);
 
         //Populating the array, here if array type was address then error would have occured due to different types
-        _Tokens.push(zemtoken);  
+        _Tokens.push(nftToken);  
 
-        // console.log("Bal before minting " , zemtoken.balanceOf(msg.sender));
+        // console.log("Bal before minting " , nftToken.balanceOf(msg.sender));
 
         //Calling mint function through our instance and minting the total supply
-        zemtoken.mint(msg.sender, _tokenId);
-
-        // console.log("Bal after minting ", zemtoken.balanceOf(msg.sender));
+        nftToken.mint(msg.sender, _tokenId);
+        console.log("Owner from Factory: ", nftToken.ownerOf(_tokenId));
+        // console.log("Bal after minting ", nftToken.balanceOf(msg.sender));
     }
 
     // //Returns addresses of deployed tokens
@@ -67,16 +67,16 @@ contract ERC721Factory{
     function balanceOfAll ( address wallet_addr) public view returns (address[] memory,uint[] memory) {    
 
         //storing length of array in local variable as calling state variable again and again will increase the cost 
-        uint Zemtokenslen=_Tokens.length;
+        uint nftTokenslen=_Tokens.length;
 
         //local array to store addresses
-        address[] memory addArr = new address[] (Zemtokenslen);
+        address[] memory addArr = new address[] (nftTokenslen);
 
         //local array to store balances of address
-        uint[] memory balArr = new uint[] (Zemtokenslen);
+        uint[] memory balArr = new uint[] (nftTokenslen);
             
         //Loop to iterate through all addresses and balances
-        for(uint i=0; i<Zemtokenslen; i++){
+        for(uint i=0; i<nftTokenslen; i++){
             
             //Populating addresses of deployed tokens in local array
             addArr[i] = address(_Tokens[i]);  

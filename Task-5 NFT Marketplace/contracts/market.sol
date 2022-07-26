@@ -34,7 +34,10 @@ contract Market {
         uint heighestBid;
         // address buyer; //added for update func
         address winner;
-        // uint startTime; //Do it later
+        address royalityReceiver;
+        uint royalityFee;
+        
+        // uint startTime; //DFERC721Contracto it later
         // uint endTime;
     }
 
@@ -53,8 +56,8 @@ contract Market {
     // nft => tokenId => SaleNFT struct
     mapping(address => mapping(uint => SaleNFTs)) private _onSaleNfts;
 
-    // nft(token address) => bidder address => bid price 
-    mapping (address => mapping(address => Bidder)) private _bidders;
+    // nft(token address) => nft tokenID => Bidders struct 
+    mapping (address => mapping(uint => Bidder)) private _bidders;
 
     //nft(token address) => bidder address => placed a bid or not
     mapping (address => mapping (address => bool)) private _buyersList;
@@ -69,7 +72,7 @@ contract Market {
         _;
     }
 
-    function setNFTonSale (address _seller, address _nftToken, uint _nftTokenId, address _payableToken) external { 
+    function setNFTonSale (address _royaltyReciever, address _seller, address _nftToken, uint _nftTokenId, address _payableToken, uint _royalityFee) external { 
         //Checks:
         //See if the token put on sale is done by the owner of the NFT 
         //End time should be greater than start time
@@ -82,16 +85,20 @@ contract Market {
         require(!listedNFT.onSale, "Already on sale");
 
         require(_seller == nft.ownerOf(_nftTokenId), "Only Owner can forward the request to put NFT on sale");
+        
 
         _onSaleNfts[_nftToken][_nftTokenId] = SaleNFTs({
-            seller: msg.sender, //address seller
+            // creator: _royaltyReciever,
+            seller: _seller, //address seller
             token: _nftToken,
             tokenId: _nftTokenId,
             payableToken: _payableToken,
             sold: false,
             lastBidder: address(0),
             heighestBid: 0,
-            winner: address(0)
+            winner: address(0),
+            royalityReceiver: _royaltyReciever,
+            royalityFee: _royalityFee
             // startTime: _startTime,
             // endTime: _endTime
         });
@@ -103,6 +110,8 @@ contract Market {
                 tokenId: _nftTokenId
         });
 
+        nft.transferFrom(_seller, address(this), _nftTokenId);
+
         emit onSale (_nftTokenId, _nftToken, msg.sender);
     } 
 
@@ -110,7 +119,7 @@ contract Market {
         return _onSaleNfts[_nftToken][_nftTokenId];
     }
 
-    function placeBid (address _nftToken, address _buyer, uint _price, uint _nftTokenId) external payable isListedOnSaleNFT (_nftToken, _nftTokenId) {
+    function placeBid (address _nftToken, address _buyer, uint _price, uint _nftTokenId, address _paymentToken) external payable isListedOnSaleNFT (_nftToken, _nftTokenId) {
         //Checks:
         // -Seller cannot be buyer
         // -Token is on sale
@@ -124,29 +133,44 @@ contract Market {
 
         require(_price >=_onSaleNfts[_nftToken][_nftTokenId].heighestBid, "less than highest bid price");
         
-        SaleNFTs storage saleNFT = _onSaleNfts[_nftToken][_nftTokenId];
-        IERC20 payToken = IERC20(saleNFT.payableToken);
-        // console.log(saleNFT.payableToken, "TOKEN PAYABLE");
-        // console.log("BUYER Contract: ", _buyer, "Balance: ", payToken.balanceOf(_buyer));
+         _bidders[_nftToken][_nftTokenId] = Bidder({
+            buyer: _buyer,
+            nftToken: _nftToken, //nft to be sold 
+            nftTokenId: _nftTokenId,
+            price: _price,
+            paidToken: _paymentToken
+        });
 
-        payToken.transferFrom(_buyer, address(this), _price);
+        SaleNFTs storage saleNFT = _onSaleNfts[_nftToken][_nftTokenId];
+
+        Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
+        ZemToken payToken = ZemToken(biddersNFT.paidToken);
+        // console.log(biddersNFT.paidToken, "TOKEN PAYABLE");
+        console.log("BUYER Contract: ", _buyer, "Balance: ", payToken.balanceOf(biddersNFT.buyer));
+        
+        payToken.approve(biddersNFT.buyer, payToken.balanceOf(biddersNFT.buyer));
+
+        payToken.transferFrom(biddersNFT.buyer, address(this), _price);
         // console.log("buyer: ", _buyer);
         // console.log("address: ", address(this));
-        // console.log(payToken.balanceOf(address(this)));
+        // console.log(payToken.balanceOf(_buyer));
 
         if (saleNFT.lastBidder != address(0)) {
             address lastBidder = saleNFT.lastBidder;
             uint lastBidPrice = saleNFT.heighestBid;
 
             // Transfer back to last bidder
+            payToken.approve(address(this), lastBidPrice);
+
             payToken.transferFrom(address(this), lastBidder, lastBidPrice);
+            console.log(payToken.balanceOf(address(this)));
         }
 
-        nft.transferFrom(address(this), saleNFT.lastBidder, saleNFT.tokenId);
+        // nft.transferFrom(address(this), saleNFT.lastBidder, saleNFT.tokenId);
 
 
         // Set new heighest bid price
-        saleNFT.lastBidder = msg.sender; //address buyer
+        saleNFT.lastBidder = _buyer; //address buyer
         saleNFT.heighestBid = _price;
 
         // _bidPrices[_nftToken][_buyer]=_price;
@@ -160,41 +184,100 @@ contract Market {
         
         require (_buyersList[_nftToken][_buyer], "Bid not placed by specified buyer");
 
-        SaleNFTs storage saleNFT = _onSaleNfts[_nftToken][_nftTokenId];
-        IERC20 payToken = IERC20(saleNFT.payableToken);
+        Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
+        ZemToken payToken = ZemToken(biddersNFT.paidToken);
 
-        SaleNFTs storage nft = _onSaleNfts[_nftToken][_nftTokenId];
+        // Token nft = Token(_nftToken);
+        console.log(payToken.balanceOf(address(this)));
 
-        payToken.transferFrom(address(this), _buyer, nft.heighestBid);
+        SaleNFTs storage nftonSale = _onSaleNfts[_nftToken][_nftTokenId];
 
+        payToken.approve(address(this), nftonSale.heighestBid);
 
-        nft.heighestBid = _price;
+        payToken.transferFrom(address(this), _buyer, nftonSale.heighestBid);
 
-        payToken.transferFrom(_buyer, address(this), nft.heighestBid);
+        nftonSale.heighestBid = _price;
+        console.log(nftonSale.heighestBid);
+
+        payToken.transferFrom(_buyer, address(this), nftonSale.heighestBid);
     }
 
     function cancelBid(address _nftToken, address _buyer, uint _nftTokenId) external {
-        require (!_buyersList[_nftToken][_buyer], "Bid not placed by specified buyer");
+        require (_buyersList[_nftToken][_buyer], "Bid not placed by specified buyer");
+
+        Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
+        ZemToken payToken = ZemToken(biddersNFT.paidToken);
+
+        SaleNFTs storage nftonSale = _onSaleNfts[_nftToken][_nftTokenId];
+
+        console.log(payToken.balanceOf(_buyer));
+        console.log(nftonSale.heighestBid);
+
+
+        payToken.approve(address(this), nftonSale.heighestBid);
+
+        payToken.transferFrom(address(this), _buyer, nftonSale.heighestBid);
+
+
+        console.log(payToken.balanceOf(_buyer));
+
 
         delete _buyersList[_nftToken][_buyer];
+        delete _bidders[_nftToken][_nftTokenId];
         delete _NftsList[_nftToken][_nftTokenId];
-        delete _bidders[_nftToken][_buyer];
+        delete _bidders[_nftToken][_nftTokenId];
     }
 
     function ConcludeAuction(address _nftToken, uint _nftTokenId) external {
         SaleNFTs storage auction = _onSaleNfts[_nftToken][_nftTokenId];
-        IERC20 payToken = IERC20(auction.payableToken);
-        IERC721 nft = IERC721(auction.token);
+         Bidder storage biddersNFT = _bidders[_nftToken][_nftTokenId];
+
+        _NftsList[_nftToken][_nftTokenId] = NFTList({
+                onSale: false,
+                seller: msg.sender,
+                token: _nftToken,
+                tokenId: _nftTokenId
+        });
+
+        ZemToken payToken = ZemToken(biddersNFT.paidToken);
+        Token nft = Token(auction.token);
 
         auction.sold=true;
         auction.winner= auction.lastBidder;
         uint totalPrice = auction.heighestBid;
 
+        console.log("Total Sale Price", totalPrice);
+
+        console.log("Balance before concluding: ", payToken.balanceOf(address(this)));
+        console.log("Creator: ", auction.royalityReceiver);
+        console.log("Seller: ", auction.seller);
+
+        payToken.approve(address(this), auction.heighestBid);
+        console.log("Fee: ", auction.royalityFee);
+        if(auction.royalityReceiver!=auction.seller){
+            console.log("Secondary Sale");
+            uint creatorRoyalty = (totalPrice)/auction.royalityFee;
+            console.log("Creator's Balance before: ", payToken.balanceOf(auction.royalityReceiver));
+            console.log("Seller's before concluding: ", payToken.balanceOf(auction.seller));
+            console.log("Creator Royality Fee", creatorRoyalty);
+            payToken.transferFrom(address(this), auction.royalityReceiver, creatorRoyalty);
+            console.log("Creator's after concluding: ", payToken.balanceOf(auction.royalityReceiver));
+            console.log("Seller ka hissa", totalPrice-creatorRoyalty);
+
+            payToken.transferFrom(address(this), auction.seller, totalPrice-creatorRoyalty);
+            console.log("Seller's after concluding: ", payToken.balanceOf(auction.seller));
+
+        }
+        else{
+            console.log("First Sale");
+            payToken.transferFrom(address(this), auction.seller, totalPrice);
+        }
         // Transfer to auction creator
-        payToken.transferFrom(auction.lastBidder, auction.seller, totalPrice);
+        console.log("Balance after concluding: ", payToken.balanceOf(address(this)));
 
         // Transfer NFT to the winner
         nft.transferFrom(address(this), auction.lastBidder, auction.tokenId);
-    }
 
+        console.log("New Owner: ", nft.ownerOf(_nftTokenId));
+    }
 }
