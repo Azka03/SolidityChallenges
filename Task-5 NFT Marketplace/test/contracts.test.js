@@ -92,7 +92,7 @@ describe("Market Deployment", async function () {
         // const balance = await erc20Token.balanceOf(_buyer.address);
         // // console.log("ACCOUNT: ", _buyer.address, "BALANCEE: ", balance)
         await marketContract.placeBid(nftAddr[0], _buyer.address, 10, 1, erc20Token.address);
-        const res = await marketContract.getBidder(nftAddr[0],1);
+        const res = await marketContract.getBid(nftAddr[0],1);
         console.log("Bidder: ", res);
     });
 
@@ -108,7 +108,7 @@ describe("Market Deployment", async function () {
         const firstBid= await marketContract.placeBid(nftAddr[0], _buyer.address, 10, 1, erc20Token.address);  
         const secondBid= await marketContract.placeBid(nftAddr[0], _buyer2.address, 20, 1, erc20Token.address);
 
-        const res = await marketContract.getBidder(nftAddr[0],1);
+        const res = await marketContract.getBid(nftAddr[0],1);
         console.log("Bidder: ", res);
     });
 
@@ -130,7 +130,7 @@ describe("Market Deployment", async function () {
         await marketContract.placeBid(nftAddr[0], _buyer.address, 10, 1, erc20Token.address);
         await marketContract.updateBid(nftAddr[0], _buyer.address, 5, 1);
         
-        const res = await marketContract.getBidder(nftAddr[0],1);
+        const res = await marketContract.getBid(nftAddr[0],1);
         console.log("Updated Bidder: ", res);
     });
 
@@ -156,7 +156,7 @@ describe("Market Deployment", async function () {
         await marketContract.placeBid(nftAddr[0], _buyer.address, 10, 1, erc20Token.address);
         await marketContract.cancelBid(nftAddr[0], _buyer.address, 1);
         
-        const res = await marketContract.getBidder(nftAddr[0],1);
+        const res = await marketContract.getBid(nftAddr[0],1);
         console.log("Cancelled Bid: ", res);
         
     });
