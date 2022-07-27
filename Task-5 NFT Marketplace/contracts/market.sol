@@ -12,12 +12,14 @@ import "hardhat/console.sol"; //console for debugging
 contract Market {
    
     //which NFTs are on sale (List of NFTs)
+    //TODO change naming
     struct NFTList{
         bool onSale;
         address seller;
         address token;
         uint tokenId;
     }
+    //TODO change naming
 
     //List of owners of the NFTs which are on sale (Includes auction params as well)
     struct SaleNFTs {
@@ -36,7 +38,8 @@ contract Market {
         // uint endTime;
     }
 
-    //List of bidders who bid on certain NFT
+       //TODO change naming
+ //List of bidders who bid on certain NFT
     struct Bidder {
         address buyer;
         address nftToken; //nft to be sold 
@@ -47,6 +50,7 @@ contract Market {
 
     // nft address => tokenId => NFTList struct 
     mapping(address => mapping(uint => NFTList)) private _NftsList;
+    //TODO change naming
 
     // nft => tokenId => SaleNFT struct
     mapping(address => mapping(uint => SaleNFTs)) private _onSaleNfts;
@@ -102,6 +106,8 @@ contract Market {
                 token: _nftToken,
                 tokenId: _nftTokenId
         });
+
+        //TODO Safe Transfer
 
         nft.transferFrom(_seller, address(this), _nftTokenId);
 
@@ -178,6 +184,7 @@ contract Market {
 
         require (biddersNFT.price!=_price, "Updating Bid with same price is not allowed");
 
+        //TODO Interface can be used to call functions
         ZemToken payToken = ZemToken(biddersNFT.paidToken);
         SaleNFTs storage nftonSale = _onSaleNfts[_nftToken][_nftTokenId];
 
